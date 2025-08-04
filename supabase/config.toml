@@ -1,0 +1,22 @@
+
+[functions.chatbot-openai]
+enabled = true
+verify_jwt = true
+import_map = "./functions/chatbot-openai/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/chatbot-openai/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/chatbot-openai/*.html" ]
+
+[functions.ingest-data]
+enabled = true
+verify_jwt = true
+import_map = "./functions/ingest-data/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/ingest-data/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/ingest-data/*.html" ]
