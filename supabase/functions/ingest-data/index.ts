@@ -1,11 +1,21 @@
-// supabase/functions/ingest-data/index.ts (Final Optimized Version)
+// supabase/functions/ingest-data/index.ts
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@4'
 
+// --- TypeScript 型別定義 (與前端保持一致) ---
+interface FlavorProfile {
+  index: string;
+  remark: string;
+}
 interface Ingredient {
   name: string;
   story: string;
+  flavor_profiles: FlavorProfile[];
+}
+interface MainFlavor {
+  name: string;
+  flavor_profiles: FlavorProfile[];
 }
 
 const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') })
@@ -21,6 +31,7 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     )
 
+    // 1. 同時讀取菜品和酒品
     const [dishesRes, winesRes] = await Promise.all([
       supabaseClient.from('dishes').select('*'),
       supabaseClient.from('wines').select('*')
@@ -33,15 +44,19 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: '資料庫中沒有項目可同步。' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
     
+    // 2. 清空舊的知識庫
     await supabaseClient.from('documents').delete().neq('id', -1)
 
+    // 3. 遍歷所有項目，產生新的知識庫內容
     for (const item of allItems) {
       let content = '';
       
-      // --- **最終優化點：將資料組合成結構化的摘要** ---
-      if ('ingredients' in item) { // 這是菜品
+      // 判斷是菜品還是酒品，並產生對應的結構化語料
+      if ('ingredients' in item && item.ingredients) { // 這是菜品
         const ingredients = item.ingredients as Ingredient[] | null;
-        const ingredientsText = ingredients?.map(i => `  - 食材「${i.name}」的故事是：${i.story || '無'}`).join('\n') || '未提供';
+        const ingredientsText = ingredients
+          ?.map(i => `  - 食材「${i.name}」的故事是：${i.story || '無'}\n    其風味細節如下：\n${i.flavor_profiles?.map(fp => `      - Index ${fp.index}: ${fp.remark}`).join('\n') || '      - 無'}`)
+          .join('\n') || '未提供';
         content = `
 # 菜品資訊：${item.name}
 ## 菜品故事
@@ -51,23 +66,27 @@ ${ingredientsText}
 ## 價格
 ${item.price} 元
 `;
-      } else { // 這是酒品
-        const flavors = item.flavors as string[] | null;
-        const flavorsText = flavors?.join('、') || '未提供';
+      } else if ('main_flavors' in item && item.main_flavors) { // 這是酒品
+        const main_flavors = item.main_flavors as MainFlavor[] | null;
+        const flavorsText = main_flavors
+          ?.map(mf => `  - 主要風味「${mf.name}」的細節描述如下：\n${mf.flavor_profiles?.map(fp => `    - Index ${fp.index}: ${fp.remark}`).join('\n') || '    - 無'}`)
+          .join('\n') || '未提供';
         content = `
 # 酒品資訊：${item.name}
 ## 酒品故事
 ${item.story || '無'}
-## 風味
+## 風味細節
 ${flavorsText}
 ## 價格
 ${item.price} 元
 `;
       }
-      
-      const embeddingResponse = await openai.embeddings.create({ model: 'text-embedding-3-small', input: content.trim() });
-      const embedding = embeddingResponse.data[0].embedding;
-      await supabaseClient.from('documents').insert({ content: content.trim(), embedding });
+
+      if (content) {
+        const embeddingResponse = await openai.embeddings.create({ model: 'text-embedding-3-small', input: content.trim() });
+        const embedding = embeddingResponse.data[0].embedding;
+        await supabaseClient.from('documents').insert({ content: content.trim(), embedding });
+      }
     }
 
     return new Response(JSON.stringify({ message: `成功同步 ${allItems.length} 筆項目資料到 AI 知識庫。` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
