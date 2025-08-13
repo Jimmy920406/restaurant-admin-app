@@ -17,15 +17,15 @@ serve(async (req) => {
     const embeddingResponse = await openai.embeddings.create({ model: 'text-embedding-3-small', input: query })
     const queryEmbedding = embeddingResponse.data[0].embedding
 
-    const { data: documents, error: matchError } = await supabaseClient.rpc('match_documents', { query_embedding: queryEmbedding, match_threshold: 0.45, match_count: 5 })
+    const { data: documents, error: matchError } = await supabaseClient.rpc('match_documents', { query_embedding: queryEmbedding, match_threshold: 0.2, match_count: 5 })
     if (matchError) throw new Error(`RPC function error: ${matchError.message}`)
 
     const contextText = documents && documents.length > 0 ? documents.map((doc: Document) => doc.content).join('\n---\n') : 'No relevant context found.'
 
     // --- **優化點：使用更簡單、直接的 Prompt** ---
     const finalPrompt = `
-      You are a helpful assistant whose persona is: "${customPrompt}".
-      Based on the following context, please answer the user's question.
+      你是一個知識檢索助手，僅能根據以下Context回答問題。
+      如果問題與Context無關，請回答："我不知道"。
 
       Context: """
       ${contextText}
@@ -34,8 +34,6 @@ serve(async (req) => {
       User Question: """
       ${query}
       """
-
-      If the context is not relevant, just say: "抱歉，我找不到相關資料。"
     `
     
     const chatResponse = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: finalPrompt }], temperature: 0.2 })

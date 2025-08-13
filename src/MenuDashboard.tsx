@@ -21,7 +21,6 @@ interface MenuItem {
 }
 
 export default function MenuDashboard() {
-  // --- STATE MANAGEMENT ---
   const chatbotRef = useRef<ChatbotHandle>(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -188,7 +187,7 @@ export default function MenuDashboard() {
         <section className="flex-1 flex flex-col gap-4">
           <div className="flex-1 bg-white rounded-lg shadow-lg overflow-hidden"><Chatbot ref={chatbotRef} /></div>
           <footer className="flex gap-4">
-             <button onClick={openAddModal} className="flex-1 p-3 bg-blue-500 text-white font-bold rounded-lg shadow-md hover:bg-blue-600">新增餐點</button>
+             <button onClick={openAddModal} className="flex-1 p-3 bg-blue-500 text-white font-bold rounded-lg shadow-md hover:bg-blue-600">新增菜單</button>
              <button onClick={handleIngestData} className="flex-1 p-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-teal-700">同步語料到 AI</button>
           </footer>
         </section>
